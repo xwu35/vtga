@@ -5,7 +5,7 @@ VTGA is a Snakemake workflow designed to assemble bacterial genome using Illumin
 ## Workflow
 
 <p align="center">
-    <img src="images/vtga_workflow.png" height=450>
+    <img src="images/vtga_workflow.png" height=500>
 </p>
 
 - **Short reads only**: Short reads are trimmed with [fastp](https://github.com/OpenGene/fastp) and assembled with [shovill](https://github.com/tseemann/shovill) (using [spades](https://github.com/ablab/spades) by default). Contigs <1kb are excluded from the final assembly, and genome quality is assessed using [CheckM2](https://github.com/chklovski/CheckM2).
