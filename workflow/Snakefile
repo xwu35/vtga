@@ -1,0 +1,46 @@
+import os
+import glob
+import pathlib
+
+configfile: os.path.join(workflow.basedir, "..", "config", "config.yaml")
+
+# ONT reads
+LONG = config["long_reads"]
+
+# Illumina reads
+R1 = config["short_r1"]
+R2 = config["short_r2"]
+
+# directory to save the results
+RESULTS_DIR = config["results_dir"]
+
+# subsampled reads number
+SUBREADS_COUNT = config["count"]
+
+# convert number of subsampled read sets into a list of strings
+NUMBER = ["{:02d}".format(i+1) for i in range(SUBREADS_COUNT)]
+
+# rules
+include: "rules/setup.smk"
+include: "rules/process.smk"
+
+# funtion to define requested inputs for the rule all
+def get_all_input(wildcards):
+    wanted_input = []
+
+    if config["reads_type"]=="short":
+        wanted_input = short_only_input
+
+    if config["reads_type"]=="long":
+        wanted_input = long_only_input
+    
+    if config["reads_type"]=="hybrid":
+        wanted_input = hybrid_input
+
+    return wanted_input
+
+# master target rule
+rule all:
+    input: get_all_input
+
+

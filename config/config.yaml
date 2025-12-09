@@ -1,0 +1,23 @@
+# resources: cpu and memory
+resources:
+    big_mem: 128000      
+    big_cpu: 16         
+
+    med_mem: 64000      
+    med_cpu: 8         
+
+    small_mem: 16000      
+    small_cpu: 4  
+
+shovill:
+  assembler: "spades" # shovill default
+  genome_size: "''" # shoville default. "3.6M"
+  length: 1000
+  coverage: 2 # shovill default
+  
+filtlong:
+  length: 1000
+  percent: 95
+
+medaka:
+  mode: "--bacteria"
