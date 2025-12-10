@@ -64,7 +64,7 @@ source ~/.bashrc
 
 ## Usage
 
-VTGA supports both short and long reads assembly, with hybrid (both short and long reads) used by default. Detailed usage information can be viewed using the -h or --help flags -h. 
+VTGA supports both short and long reads assembly, with hybrid used by default. Detailed usage information can be viewed using the -h or --help flags `vtga.py -h`. 
 
 Do not run the analysis on the login node. Submit it as a sbatch job. A dry-run can be performed to check which rules will be executed and which files will be produced by specifying `--dryrun`.
 
