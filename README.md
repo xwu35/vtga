@@ -118,12 +118,12 @@ Options:
 
 | Reads type |                                      Filename                                         |                            Description                          |
 |------------|---------------------------------------------------------------------------------------|-----------------------------------------------------------------|
-| Short only | `short_reads_only/genome_sequences/contigs.fa`                                        | The final assembly you should use                               |
-| Short only | `short_reads_only/genome_sequences/spades.fasta`                                      | Raw assembled contigs (spades)                                  |
-| Short only | `short_reads_only/genome_quality/quality_report.tsv`                                  | Genome quality report                                           |
-| Long only  | `long_reads_only/genome_sequences/consensus.fasta`                                    | The final assembly containing chromosome and plasmid sequences  |
-| Long only  | `long_reads_only/genome_sequences/chromosome_genome.fasta`                            | The extracted chromosome genome sequences                       |
-| Long only  | `long_reads_only/genome_quality/quality_report.tsv`                                   | Chromosome genome quality report                                |
+| Short      | `short_reads_only/genome_sequences/contigs.fa`                                        | The final assembly you should use                               |
+| Short      | `short_reads_only/genome_sequences/spades.fasta`                                      | Raw assembled contigs (spades)                                  |
+| Short      | `short_reads_only/genome_quality/quality_report.tsv`                                  | Genome quality report                                           |
+| Long       | `long_reads_only/genome_sequences/consensus.fasta`                                    | The final assembly containing chromosome and plasmid sequences  |
+| Long       | `long_reads_only/genome_sequences/chromosome_genome.fasta`                            | The extracted chromosome genome sequences                       |
+| Long       | `long_reads_only/genome_quality/quality_report.tsv`                                   | Chromosome genome quality report                                |
 | Hybrid     | `long_reads_plus_short_reads_polished/genome_sequences/short_reads_polished.fasta`    | The final assembly containing chromosome and plasmid sequences  |
 | Hybrid     | `long_reads_plus_short_reads_polished/genome_sequences/chromosome_genome.fasta`       | The extracted chromosome genome sequences                       |
 | Hybrid     | `long_reads_plus_short_reads_polished/genome_quality/quality_report.tsv`              | Chromosome genome quality report                                |
