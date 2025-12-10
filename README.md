@@ -94,6 +94,26 @@ vtga.py \
     --reads_type long
 ```
 
+Options:
+
+```
+$ vtga.py -h
+
+Usage: vtga.py --long_reads <ONT reads> --short_r1 <Illumina R1> --short_r2 <Illumina R2> -o <output directory>
+
+Options:
+  --long_reads FILE      Long-read FASTQ
+  --short_r1 FILE        Short-read R1 FASTQ
+  --short_r2 FILE        Short-read R2 FASTQ
+  -o, --output_dir PATH  Output directory [default: OUTPUT]
+  --reads_type TEXT      Reads type; available options are: short, long, hybrid [default: hybrid]
+  --count INTEGER        Number of subsampled read sets. This option only applies when long reads are provided [default: 4]
+  --dryrun               Check rules to run and files to produce
+  --profile TEXT         Snakemake profile for cluster execution [default: slurm]
+  -v, --version          Show the version and exit.
+  -h, --help             Show this message and exit.
+```
+
 ## Output file description
 
 | Reads type |                                      Filename                                         |                            Description                          |
