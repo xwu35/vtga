@@ -66,7 +66,7 @@ source ~/.bashrc
 
 VTGA supports both short and long reads assembly, with hybrid used by default. Detailed usage information can be viewed using the -h or --help flags `vtga.py -h`. 
 
-Do not run the analysis on the login node. Submit it as a sbatch job. A dry-run can be performed to check which rules will be executed and which files will be produced by specifying `--dryrun`.
+Do not run the analysis on the login node. Submit it as a sbatch job. See run_prophagemerger.sh for an example, or check the HTCF usage guide here (https://github.com/xwu35/baldridge_lab/blob/main/HTCF.md). A dry-run can be performed to check which rules will be executed and which files will be produced by specifying `--dryrun`.
 
 If you did not export the path as shown above, you will need to specify the full path to `vtga.py`.
 
