@@ -23,6 +23,7 @@ rule trim_short_reads:
             --unpaired2 /dev/null \
             -h {output.html} \
             -j {output.json} \
+            --thread {threads} \
             --detect_adapter_for_pe \
             --trim_poly_g # By default trimming is automatically enabled for Illumina NextSeq/NovaSeq data, but it did not, so force polyG tail trimming. 
         """
