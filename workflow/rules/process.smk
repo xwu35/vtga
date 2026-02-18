@@ -109,6 +109,8 @@ rule calculate_genome_size:
         size=os.path.join(RESULTS_DIR, "intermediate", "estimated_genome_size.txt")
     threads:
         config["resources"]["med_cpu"]
+    resources:  
+        mem_mb=config["resources"]["small_mem"]
     conda:
         os.path.join(dir["env"], "lrge.yml")
     shell:
