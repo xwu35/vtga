@@ -181,13 +181,15 @@ rule autocycler_assembly_plassembler:
         sub_seq=os.path.join(RESULTS_DIR, "intermediate", "subsampled_reads", "sample_{number}.fastq"),
         genome_size=os.path.join(RESULTS_DIR, "intermediate", "estimated_genome_size.txt")
     output:
-        multiext(os.path.join(RESULTS_DIR, "intermediate", "assemblies", "plassembler_{number}"), ".fasta", ".gfa", ".log")
+        # track marker file to handle cases where no plasmid is assembled
+        done=os.path.join(RESULTS_DIR, "intermediate", "assemblies", ".finished_plassembler_{number}")
     params:
         prefix=os.path.join(RESULTS_DIR, "intermediate", "assemblies", "plassembler_{number}")
     threads:
         config["resources"]["med_cpu"]
     resources:  
-        mem_mb=config["resources"]["med_mem"]
+        mem_mb=lambda wildcards, attempt: config["resources"]["med_mem"] * (2**(attempt - 1))
+    retries: 2 
     conda:
         os.path.join(dir["env"], "autocycler.yml")
     shell:
@@ -198,7 +200,9 @@ rule autocycler_assembly_plassembler:
             --reads {input.sub_seq} \
             --out_prefix {params.prefix} \
             --threads {threads} \
-            --genome_size "$genome_size"
+            --genome_size "$genome_size" &&
+        
+        touch {output.done}
         """
 
 rule autocycler_compress_assemblies:

@@ -13,7 +13,7 @@ reads_list=[os.path.join(RESULTS_DIR, "intermediate", "subsampled_reads", "sampl
 flye_list=[os.path.join(RESULTS_DIR, "intermediate", "assemblies", "flye_" + n + ".fasta").format(n) for n in NUMBER] 
 
 # get the list of fasta files from plassembler assembly
-plassembler_list=[os.path.join(RESULTS_DIR, "intermediate", "assemblies", "plassembler_" + n + ".fasta").format(n) for n in NUMBER]
+plassembler_list=[os.path.join(RESULTS_DIR, "intermediate", "assemblies", ".finished_plassembler_" + n).format(n) for n in NUMBER]
 
 #------------ SET UP THE OUTPUT
 # only short reads provided
