@@ -1,12 +1,15 @@
+localrules:
+    print_software_version
+
 rule trim_short_reads:
     input: 
-        r1=R1,
-        r2=R2
+        r1=lambda wildcards: SHORT_R1_MAP[wildcards.genome],
+        r2=lambda wildcards: SHORT_R2_MAP[wildcards.genome]
     output:
-        r1_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "short_reads_R1_trimmed.fastq.gz"),
-        r2_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "short_reads_R2_trimmed.fastq.gz"),
-        html=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "short_reads_fastp.html"),
-        json=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "short_reads_fastp.json")
+        r1_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "{genome}_sr_R1_trimmed.fastq.gz"),
+        r2_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "{genome}_sr_R2_trimmed.fastq.gz"),
+        html=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "{genome}_sr_fastp.html"),
+        json=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "{genome}_sr_fastp.json")
     threads:
         config["resources"]["med_cpu"]
     resources:  
@@ -23,6 +26,7 @@ rule trim_short_reads:
             --unpaired2 /dev/null \
             -h {output.html} \
             -j {output.json} \
+            --length_required 30 \
             --thread {threads} \
             --detect_adapter_for_pe \
             --trim_poly_g # By default trimming is automatically enabled for Illumina NextSeq/NovaSeq data, but it did not, so force polyG tail trimming. 
@@ -30,12 +34,15 @@ rule trim_short_reads:
 
 rule shovill_short_reads_assembly:
     input: 
-        r1=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "short_reads_R1_trimmed.fastq.gz"),
-        r2=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "short_reads_R2_trimmed.fastq.gz")
+        r1=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "{genome}_sr_R1_trimmed.fastq.gz"),
+        r2=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "{genome}_sr_R2_trimmed.fastq.gz")
     output:
-        genome=os.path.join(RESULTS_DIR, "short_reads_only", "genome_sequences", "contigs.fa")
+        fa=os.path.join(RESULTS_DIR, "intermediate", "shovill_output", "{genome}", "contigs.fa"),
+        gfa=os.path.join(RESULTS_DIR, "intermediate", "shovill_output", "{genome}", "contigs.gfa"),
+        renamed_fa=os.path.join(RESULTS_DIR, "short_reads_only", "genome_sequences", "{genome}_contigs.fa"),
+        renamed_gfa=os.path.join(RESULTS_DIR, "short_reads_only", "genome_sequences", "{genome}_contigs.gfa")
     params:
-        dir=os.path.join(RESULTS_DIR, "short_reads_only", "genome_sequences"),
+        dir=os.path.join(RESULTS_DIR, "intermediate", "shovill_output", "{genome}"),
         gsize=config["shovill"]["genome_size"],
         assembler=config["shovill"]["assembler"],
         length=config["shovill"]["length"],
@@ -56,17 +63,19 @@ rule shovill_short_reads_assembly:
             --gsize {params.gsize} \
             --minlen {params.length} \
             --mincov {params.coverage} \
-            --force 
+            --force &&
+        cp {output.fa} {output.renamed_fa}
+        cp {output.gfa} {output.renamed_gfa}
         """
 
 rule checkm2_shovill_assembled_genome:
     input: 
         done=os.path.join(dir["db"], "CheckM2_database", ".checkm2_db_done"),
-        genome=os.path.join(RESULTS_DIR, "short_reads_only", "genome_sequences", "contigs.fa")
+        genome=os.path.join(RESULTS_DIR, "short_reads_only", "genome_sequences", "{genome}_contigs.fa")
     output:
-        report=os.path.join(RESULTS_DIR, "short_reads_only", "genome_quality", "quality_report.tsv")
+        report=os.path.join(RESULTS_DIR, "short_reads_only", "genome_quality", "{genome}", "quality_report.tsv")
     params:
-        dir=os.path.join(RESULTS_DIR, "short_reads_only", "genome_quality"),
+        dir=os.path.join(RESULTS_DIR, "short_reads_only", "genome_quality", "{genome}"),
         db=os.path.join(dir["db"], "CheckM2_database", "uniref100.KO.1.dmnd")
     threads:
         config["resources"]["med_cpu"]
@@ -85,9 +94,9 @@ rule checkm2_shovill_assembled_genome:
 
 rule trim_long_reads:
     input: 
-        long=LONG
+        long=lambda wildcards: LONG_READS_MAP[wildcards.genome]
     output:
-        long_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "long_reads_trimmed.fastq.gz")
+        long_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "{genome}_lr_trimmed.fastq.gz")
     params:
         length=config["filtlong"]["length"],
         percent=config["filtlong"]["percent"]
@@ -104,9 +113,9 @@ rule trim_long_reads:
 
 rule calculate_genome_size:
     input:
-        os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "long_reads_trimmed.fastq.gz")
+        os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "{genome}_lr_trimmed.fastq.gz")
     output:
-        size=os.path.join(RESULTS_DIR, "intermediate", "estimated_genome_size.txt")
+        size=os.path.join(RESULTS_DIR, "intermediate", "estimated_genome_size", "{genome}_estimated_genome_size.txt")
     threads:
         config["resources"]["med_cpu"]
     resources:  
@@ -123,14 +132,13 @@ rule autocycler_subsample:
     Step 1: subsample the long-read set into multiple files
     """
     input: 
-        long_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "long_reads_trimmed.fastq.gz"),
-        genome_size=os.path.join(RESULTS_DIR, "intermediate", "estimated_genome_size.txt")
+        long_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "{genome}_lr_trimmed.fastq.gz"),
+        genome_size=os.path.join(RESULTS_DIR, "intermediate", "estimated_genome_size", "{genome}_estimated_genome_size.txt")
     output:
-        outdir=directory(os.path.join(RESULTS_DIR, "intermediate", "subsampled_reads")),
-        sub_seq=temp(reads_list),
-        version=os.path.join(RESULTS_DIR, "long_reads_only", "software_versions.txt")
+        done=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "subsampled_reads", "{genome}", ".subsampling_done")
     params:
-        num_sub=SUBREADS_COUNT
+        num_sub=SUBREADS_COUNT,
+        outdir=directory(os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "subsampled_reads", "{genome}")),
     threads:
         config["resources"]["med_cpu"]
     resources:  
@@ -141,11 +149,12 @@ rule autocycler_subsample:
         """
         genome_size=$(cat {input.genome_size}) 
 
-        autocycler subsample --reads {input.long_filt} --out_dir {output.outdir} --genome_size "$genome_size" --count {params.num_sub}
-
-        autocycler --version >> {output.version}
-        flye -v | sed 's/^/flye /' >> {output.version}
-        plassembler --version >> {output.version}
+        autocycler subsample \
+            --reads {input.long_filt} \
+            --out_dir {params.outdir} \
+            --genome_size "$genome_size" \
+            --count {params.num_sub} &&
+        touch {output.done}
         """
 
 rule autocycler_assembly_flye:
@@ -153,12 +162,13 @@ rule autocycler_assembly_flye:
     Step 2: assemble each subsampled file using flye
     """
     input: 
-        sub_seq=os.path.join(RESULTS_DIR, "intermediate", "subsampled_reads", "sample_{number}.fastq"),
-        genome_size=os.path.join(RESULTS_DIR, "intermediate", "estimated_genome_size.txt")
+        done=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "subsampled_reads", "{genome}", ".subsampling_done"),
+        genome_size=os.path.join(RESULTS_DIR, "intermediate", "estimated_genome_size", "{genome}_estimated_genome_size.txt")
     output:
-        multiext(os.path.join(RESULTS_DIR, "intermediate", "assemblies", "flye_{number}"), ".fasta", ".gfa", ".log")
+        multiext(os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "assemblies", "{genome}", "flye_{number}"), ".fasta", ".gfa", ".log")
     params:
-        prefix=os.path.join(RESULTS_DIR, "intermediate", "assemblies", "flye_{number}")
+        sub_seq=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "subsampled_reads", "{genome}", "sample_{number}.fastq"),
+        prefix=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "assemblies", "{genome}", "flye_{number}")
     threads:
         config["resources"]["med_cpu"]
     resources:  
@@ -169,7 +179,11 @@ rule autocycler_assembly_flye:
         """
         genome_size=$(cat {input.genome_size})
 
-        autocycler helper flye --reads {input.sub_seq} --out_prefix {params.prefix} --threads {threads} --genome_size "$genome_size"
+        autocycler helper flye \
+            --reads {params.sub_seq} \
+            --out_prefix {params.prefix} \
+            --threads {threads} \
+            --genome_size "$genome_size"
         """
 
 rule autocycler_assembly_plassembler:
@@ -177,14 +191,15 @@ rule autocycler_assembly_plassembler:
     Step 2: assemble each subsampled file using plassembler (for plasmids)
     """
     input: 
-        done=os.path.join(dir["conda_envs"], ".plassembler_db_done"),
-        sub_seq=os.path.join(RESULTS_DIR, "intermediate", "subsampled_reads", "sample_{number}.fastq"),
-        genome_size=os.path.join(RESULTS_DIR, "intermediate", "estimated_genome_size.txt")
+        db_done=os.path.join(CONDA_ENVS, ".plassembler_db_done"),
+        subsample_done=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "subsampled_reads", "{genome}", ".subsampling_done"),
+        genome_size=os.path.join(RESULTS_DIR, "intermediate", "estimated_genome_size", "{genome}_estimated_genome_size.txt")
     output:
         # track marker file to handle cases where no plasmid is assembled
-        done=os.path.join(RESULTS_DIR, "intermediate", "assemblies", ".finished_plassembler_{number}")
+        done=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "assemblies", "{genome}", ".finished_plassembler_{number}")
     params:
-        prefix=os.path.join(RESULTS_DIR, "intermediate", "assemblies", "plassembler_{number}")
+        sub_seq=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "subsampled_reads", "{genome}", "sample_{number}.fastq"),
+        prefix=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "assemblies", "{genome}", "plassembler_{number}")
     threads:
         config["resources"]["med_cpu"]
     resources:  
@@ -197,7 +212,7 @@ rule autocycler_assembly_plassembler:
         genome_size=$(cat {input.genome_size})
 
         autocycler helper plassembler \
-            --reads {input.sub_seq} \
+            --reads {params.sub_seq} \
             --out_prefix {params.prefix} \
             --threads {threads} \
             --genome_size "$genome_size" &&
@@ -210,13 +225,13 @@ rule autocycler_compress_assemblies:
     Step 3: compress the input assemblies into a unitig graph
     """
     input: 
-        flye=flye_list,
-        plassembler=plassembler_list
+        flye=lambda wildcards: flye_list[wildcards.genome],
+        plassembler=lambda wildcards: plassembler_list[wildcards.genome]
     output:
-        gfa=os.path.join(RESULTS_DIR, "intermediate", "autocycler_out", "input_assemblies.gfa")
+        gfa=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "input_assemblies.gfa")
     params:
-        indir=os.path.join(RESULTS_DIR, "intermediate", "assemblies"),
-        outdir=directory(os.path.join(RESULTS_DIR, "intermediate", "autocycler_out"))
+        indir=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "assemblies", "{genome}",),
+        outdir=directory(os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}"))
     threads:
         config["resources"]["med_cpu"]
     resources:  
@@ -236,12 +251,12 @@ rule autocycler_cluster:
     Step 4: cluster the input contigs into putative genomic sequences
     """
     input: 
-        gfa=os.path.join(RESULTS_DIR, "intermediate", "autocycler_out", "input_assemblies.gfa")
+        gfa=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "input_assemblies.gfa")
     output:
-        os.path.join(RESULTS_DIR, "intermediate", "autocycler_out", "clustering", "clustering.tsv")
+        os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "clustering", "clustering.tsv")
     params:
-        indir=directory(os.path.join(RESULTS_DIR, "intermediate", "autocycler_out")),
-        outdir=directory(os.path.join(RESULTS_DIR, "intermediate", "autocycler_out", "clustering"))
+        indir=directory(os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}")),
+        outdir=directory(os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "clustering"))
     threads:
         config["resources"]["med_cpu"]
     resources:  
@@ -258,11 +273,11 @@ rule autocycler_trim_and_resolve:
     Steps 5 and 6: trim and resolve each QC-pass cluster
     """
     input: 
-       os.path.join(RESULTS_DIR, "intermediate", "autocycler_out", "clustering", "clustering.tsv")
+       os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "clustering", "clustering.tsv")
     output:
-        done=os.path.join(RESULTS_DIR, "intermediate", "autocycler_out", "clustering", "qc_pass", ".done")
+        done=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "clustering", "qc_pass", ".done")
     params:
-        dir=os.path.join(RESULTS_DIR, "intermediate", "autocycler_out", "clustering", "qc_pass", "cluster_*")
+        dir=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "clustering", "qc_pass", "cluster_*")
     threads:
         config["resources"]["med_cpu"]
     resources:  
@@ -284,13 +299,13 @@ rule autocycler_combine_resolved_clusters:
     Step 7: combine resolved clusters into a final assembly
     """
     input: 
-        done=os.path.join(RESULTS_DIR, "intermediate", "autocycler_out", "clustering", "qc_pass", ".done")
+        done=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "clustering", "qc_pass", ".done")
     output:
-        gfa=os.path.join(RESULTS_DIR, "intermediate", "autocycler_out", "consensus_assembly.gfa"),
-        fasta=os.path.join(RESULTS_DIR, "intermediate", "autocycler_out", "consensus_assembly.fasta")
+        gfa=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "consensus_assembly.gfa"),
+        fasta=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "consensus_assembly.fasta")
     params:
-        autocycler_dir=os.path.join(RESULTS_DIR, "intermediate", "autocycler_out"),
-        final_gfa=os.path.join(RESULTS_DIR, "intermediate", "autocycler_out", "clustering", "qc_pass", "cluster_*", "5_final.gfa")
+        autocycler_dir=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}"),
+        final_gfa=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "clustering", "qc_pass", "cluster_*", "5_final.gfa")
     threads:
         config["resources"]["med_cpu"]
     resources:  
@@ -304,18 +319,33 @@ rule autocycler_combine_resolved_clusters:
             -i {params.final_gfa}
         """
 
+rule print_software_version:
+    output:
+        version=os.path.join(RESULTS_DIR, "long_reads_only", "software_versions.txt")
+    conda:
+        os.path.join(dir["env"], "autocycler.yml")
+    shell:
+        """
+        autocycler --version >> {output.version}
+        flye -v | sed 's/^/flye /' >> {output.version}
+        plassembler --version >> {output.version}
+        """
+
 rule medaka_polishing:
     """
     polish genome assemblies with long reads
     """
     input: 
-        long_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "long_reads_trimmed.fastq.gz"),
-        fasta=os.path.join(RESULTS_DIR, "intermediate", "autocycler_out", "consensus_assembly.fasta")
+        long_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "{genome}_lr_trimmed.fastq.gz"),
+        fasta=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "consensus_assembly.fasta"),
+        gfa=os.path.join(RESULTS_DIR, "intermediate", "autocycler_output", "consensus", "{genome}", "consensus_assembly.gfa")
     output:
-        genome=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "consensus.fasta")
+        genome=os.path.join(RESULTS_DIR, "intermediate", "medaka_output", "{genome}", "consensus.fasta"),
+        renamed_genome=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "{genome}_consensus.fasta"),
+        renamed_gfa=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "{genome}_consensus.gfa")
     params:
         mode=config["medaka"]["mode"],
-        dir=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences")
+        dir=os.path.join(RESULTS_DIR, "intermediate", "medaka_output", "{genome}")
     threads:
         config["resources"]["med_cpu"]
     resources:  
@@ -329,14 +359,20 @@ rule medaka_polishing:
             -d {input.fasta} \
             -o {params.dir} \
             -t {threads} \
-            {params.mode} 
+            {params.mode} &&
+
+        # rename contigs using sample name
+        sed 's/>/>{wildcards.genome}_contig_/' {output.genome} > {output.renamed_genome}
+
+        # copy assembly graph
+        cp {input.gfa} {output.renamed_gfa}
         """
 
 rule extract_chromosome_genome_after_medaka:
     input: 
-        genome=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "consensus.fasta")
+        genome=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "{genome}_consensus.fasta")
     output:
-        chr=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "chromosome_genome.fasta")
+        chr=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "{genome}_chromosome_genome.fasta")
     params:
         script=os.path.join(dir["scripts"], "extract_longest_sequence.py")
     threads:
@@ -349,11 +385,11 @@ rule extract_chromosome_genome_after_medaka:
 rule checkm2_medaka_polished_chromosome_genome:
     input: 
         done=os.path.join(dir["db"], "CheckM2_database", ".checkm2_db_done"),
-        chr=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "chromosome_genome.fasta")
+        chr=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "{genome}_chromosome_genome.fasta")
     output:
-        report=os.path.join(RESULTS_DIR, "long_reads_only", "genome_quality", "quality_report.tsv")
+        report=os.path.join(RESULTS_DIR, "long_reads_only", "genome_quality", "{genome}", "quality_report.tsv")
     params:
-        dir=os.path.join(RESULTS_DIR, "long_reads_only", "genome_quality"),
+        dir=os.path.join(RESULTS_DIR, "long_reads_only", "genome_quality", "{genome}"),
         db=os.path.join(dir["db"], "CheckM2_database", "uniref100.KO.1.dmnd")
     threads:
         config["resources"]["med_cpu"]
@@ -375,13 +411,13 @@ rule polypolish_polishing_alignment:
     polishing genome assemblies with short reads. Step 1: align illumina reads to the assembly
     """
     input: 
-        r1_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "short_reads_R1_trimmed.fastq.gz"),
-        r2_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "short_reads_R2_trimmed.fastq.gz"),
-        fasta=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "consensus.fasta")
+        r1_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "{genome}_sr_R1_trimmed.fastq.gz"),
+        r2_filt=os.path.join(RESULTS_DIR, "intermediate", "trimmed_reads", "{genome}_sr_R2_trimmed.fastq.gz"),
+        fasta=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "{genome}_consensus.fasta")
     output:
-        index=temp(multiext(os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "consensus.fasta"), ".amb", ".ann", ".bwt", ".pac", ".sa")),
-        r1_aligned=temp(os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "alignments_R1.sam")),
-        r2_aligned=temp(os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "alignments_R2.sam"))
+        index=temp(multiext(os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "{genome}_consensus.fasta"), ".amb", ".ann", ".bwt", ".pac", ".sa")),
+        r1_aligned=temp(os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "{genome}_alignments_R1.sam")),
+        r2_aligned=temp(os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "{genome}_alignments_R2.sam"))
     threads:
         config["resources"]["big_cpu"]
     resources:  
@@ -400,12 +436,12 @@ rule polypolish_polishing_filter_alignment:
     Step 2: run Polypolish's insert size filter to exclude alignments with incongruous insert sizes
     """
     input: 
-        index=multiext(os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "consensus.fasta"), ".amb", ".ann", ".bwt", ".pac", ".sa"),
-        r1_aligned=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "alignments_R1.sam"),
-        r2_aligned=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "alignments_R2.sam")
+        index=multiext(os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "{genome}_consensus.fasta"), ".amb", ".ann", ".bwt", ".pac", ".sa"),
+        r1_aligned=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "{genome}_alignments_R1.sam"),
+        r2_aligned=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "{genome}_alignments_R2.sam")
     output:
-        r1_trimmed=temp(os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "alignments_trimmed_R1.sam")),
-        r2_trimmed=temp(os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "alignments_trimmed_R2.sam"))
+        r1_trimmed=temp(os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "{genome}_alignments_trimmed_R1.sam")),
+        r2_trimmed=temp(os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "{genome}_alignments_trimmed_R2.sam"))
     threads:
         config["resources"]["med_cpu"]
     resources:  
@@ -425,11 +461,11 @@ rule polypolish_polishing_final:
     Step 3: run Polypolish with the trimmed alignments
     """
     input: 
-        fasta=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "consensus.fasta"),
-        r1_trimmed=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "alignments_trimmed_R1.sam"),
-        r2_trimmed=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "alignments_trimmed_R2.sam")
+        fasta=os.path.join(RESULTS_DIR, "long_reads_only", "genome_sequences", "{genome}_consensus.fasta"),
+        r1_trimmed=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "{genome}_alignments_trimmed_R1.sam"),
+        r2_trimmed=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "{genome}_alignments_trimmed_R2.sam")
     output:
-        result=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "genome_sequences", "short_reads_polished.fasta")
+        result=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "genome_sequences", "{genome}_short_reads_polished.fasta")
     threads:
         config["resources"]["small_cpu"]
     resources:  
@@ -443,9 +479,9 @@ rule polypolish_polishing_final:
 
 rule extract_chromosome_genome_after_polypolish:
     input: 
-        genome=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "genome_sequences", "short_reads_polished.fasta")
+        genome=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "genome_sequences", "{genome}_short_reads_polished.fasta")
     output:
-        chr=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "genome_sequences", "chromosome_genome.fasta")
+        chr=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "genome_sequences", "{genome}_chromosome_genome.fasta")
     params:
         script=os.path.join(dir["scripts"], "extract_longest_sequence.py")
     threads:
@@ -458,11 +494,11 @@ rule extract_chromosome_genome_after_polypolish:
 rule checkm2_polypolish_polished_genome:
     input: 
         done=os.path.join(dir["db"], "CheckM2_database", ".checkm2_db_done"),
-        chr=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "genome_sequences", "chromosome_genome.fasta")
+        chr=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "genome_sequences", "{genome}_chromosome_genome.fasta")
     output:
-        os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "genome_quality", "quality_report.tsv")
+        os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "genome_quality", "{genome}", "quality_report.tsv")
     params:
-        dir=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "genome_quality"),
+        dir=os.path.join(RESULTS_DIR, "long_reads_plus_short_reads_polished", "genome_quality", "{genome}"),
         db=os.path.join(dir["db"], "CheckM2_database", "uniref100.KO.1.dmnd")
     threads:
         config["resources"]["med_cpu"]

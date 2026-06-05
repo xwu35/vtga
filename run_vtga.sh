@@ -11,7 +11,6 @@ eval "$(conda shell.bash hook)"
 conda activate snakemake
 
 vtga.py \
-    --long_reads /path/to/nanopore/long_reads \
-    --short_r1 /path/to/illumina/forward_reads \
-    --short_r2 /path/to/illumina/reverse_reads \
+    --reads_dir /path/to/raw_reads/directory \
+    --genome_info /path/to/genome/information/table \
     -o output_dir 

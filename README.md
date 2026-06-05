@@ -62,6 +62,17 @@ To make the changes take effect, you can either log out and log back in, or you 
 source ~/.bashrc
 ```
 
+## Genome information table
+
+The input table for hybrid-read assemblies must contain four columns: genome, short_R1, short_R2, long_reads. For short-read only assemblies, the long column is not required. Conversely, for long-read only assemblies, the short_R1 and short_R2 columns are not required.'
+
+| sample     | short_R1                          | short_R2                          | long_reads                     |
+|------------|-----------------------------------|-----------------------------------|--------------------------------|
+| ecoli_702  | 8VYL65_2_281_illumina_R1.fastq.gz | 8VYL65_2_281_illumina_R2.fastq.gz | 8VYL65_2_281_nanopore.fastq.gz |
+| ecoli_3206 | 8VYL65_7_299_illumina_R1.fastq.gz | 8VYL65_7_299_illumina_R2.fastq.gz | 8VYL65_7_299_nanopore.fastq.gz |
+| ecoli_5803 | 8VYL65_5_284_illumina_R1.fastq.gz | 8VYL65_5_284_illumina_R2.fastq.gz | 8VYL65_5_284_nanopore.fastq.gz |
+| ecoli_5802 | 8VYL65_4_283_illumina_R1.fastq.gz | 8VYL65_4_283_illumina_R2.fastq.gz | 8VYL65_4_283_nanopore.fastq.gz |
+
 ## Usage
 
 VTGA supports both short and long reads assembly, with hybrid used by default. Detailed usage information can be viewed using the -h or --help flags `vtga.py -h`. 
@@ -77,22 +88,21 @@ conda activate snakemake
 
 # hybrid reads by default
 vtga.py \
-    --long_reads /path/to/nanopore/long_reads \
-    --short_r1 /path/to/illumina/forward_reads \
-    --short_r2 /path/to/illumina/reverse_reads \
+    --reads_dir /path/to/raw_reads/directory \
+    --genome_info /path/to/genome/information/table \
     -o output_dir 
 
 # short reads only
 vtga.py \
-    --short_r1 /path/to/illumina/forward_reads \
-    --short_r2 /path/to/illumina/reverse_reads \
+    --reads_dir /path/to/raw_reads/directory \
+    --genome_info /path/to/genome/information/table \
     -o output_dir \
     --reads_type short
 
 # long reads only
 vtga.py \
-    --long_reads /path/to/nanopore/long_reads \
-    -o output_dir \
+    --reads_dir /path/to/raw_reads/directory \
+    --genome_info /path/to/genome/information/table \
     --reads_type long
 ```
 
@@ -101,17 +111,21 @@ Options:
 ```
 $ vtga.py -h
 
-Usage: vtga.py --long_reads <ONT reads> --short_r1 <Illumina R1> --short_r2 <Illumina R2> -o <output directory>
+Usage: vtga.py --reads_dir <reads directory> --genome_info <genome information table> -o <output directory>
 
 Options:
-  --long_reads FILE      Long-read FASTQ
-  --short_r1 FILE        Short-read R1 FASTQ
-  --short_r2 FILE        Short-read R2 FASTQ
-  -o, --output_dir PATH  Output directory [default: OUTPUT]
-  --reads_type TEXT      Reads type; available options are: short, long, hybrid [default: hybrid]
-  --count INTEGER        Number of subsampled read sets. This option only applies when long reads are provided [default: 4]
+  --reads_dir PATH       Reads directory  [required]
+  --genome_info FILE     Genome information table (tab separated). 
+                         The input table for hybrid-read assemblies must contain four columns: 
+                         genome, short_R1, short_R2, long_reads. 
+                         For short-read only assemblies, the long column is not required. 
+                         For long-read only assemblies, the short_R1 and short_R2 columns are not required.  [required]
+  -o, --output_dir PATH  Output directory  [default: OUTPUT]
+  --reads_type TEXT      Reads type; available options are: short, long, hybrid  [default: hybrid]
+  --count INTEGER        Number of subgenomed read sets. This option only applies when long reads are provided  [default: 4]
   --dryrun               Check rules to run and files to produce
-  --profile TEXT         Snakemake profile for cluster execution [default: slurm]
+  --conda_envs TEXT      Directory to store conda environments. By default, the "conda_env" directory within vtga is used  [default: ""]
+  --profile TEXT         Snakemake profile for cluster execution  [default: slurm]
   -v, --version          Show the version and exit.
   -h, --help             Show this message and exit.
 ```
@@ -120,13 +134,13 @@ Options:
 
 | Reads type |                                      Filename                                         |                            Description                          |
 |------------|---------------------------------------------------------------------------------------|-----------------------------------------------------------------|
-| Short      | `short_reads_only/genome_sequences/contigs.fa`                                        | The final assembly you should use                               |
-| Short      | `short_reads_only/genome_sequences/spades.fasta`                                      | Raw assembled contigs (spades)                                  |
-| Short      | `short_reads_only/genome_quality/quality_report.tsv`                                  | Genome quality report                                           |
-| Long       | `long_reads_only/genome_sequences/consensus.fasta`                                    | The final assembly containing chromosome and plasmid sequences  |
-| Long       | `long_reads_only/genome_sequences/chromosome_genome.fasta`                            | The extracted chromosome genome sequences                       |
-| Long       | `long_reads_only/genome_quality/quality_report.tsv`                                   | Chromosome genome quality report                                |
-| Hybrid     | `long_reads_plus_short_reads_polished/genome_sequences/short_reads_polished.fasta`    | The final assembly containing chromosome and plasmid sequences  |
-| Hybrid     | `long_reads_plus_short_reads_polished/genome_sequences/chromosome_genome.fasta`       | The extracted chromosome genome sequences                       |
-| Hybrid     | `long_reads_plus_short_reads_polished/genome_quality/quality_report.tsv`              | Chromosome genome quality report                                |
+| Short      | `short_reads_only/genome_sequences/{genome_name}_contigs.fa`                                        | The final assembly you should use                               |
+| Short      | `short_reads_only/intermediate/shovill_output/{genome_name}/spades.fasta`                           | Raw assembled contigs (spades)                                  |
+| Short      | `short_reads_only/genome_quality/{genome_name}/quality_report.tsv`                                  | Genome quality report                                           |
+| Long       | `long_reads_only/genome_sequences/{genome_name}_consensus.fasta`                                    | The final assembly containing chromosome and plasmid sequences  |
+| Long       | `long_reads_only/genome_sequences/{genome_name}_chromosome_genome.fasta`                            | The extracted chromosome genome sequences                       |
+| Long       | `long_reads_only/genome_quality/{genome_name}/quality_report.tsv`                                   | Chromosome genome quality report                                |
+| Hybrid     | `long_reads_plus_short_reads_polished/genome_sequences/{genome_name}_short_reads_polished.fasta`    | The final assembly containing chromosome and plasmid sequences  |
+| Hybrid     | `long_reads_plus_short_reads_polished/genome_sequences/{genome_name}_chromosome_genome.fasta`       | The extracted chromosome genome sequences                       |
+| Hybrid     | `long_reads_plus_short_reads_polished/genome_quality/{genome_name}/quality_report.tsv`              | Chromosome genome quality report                                |
  	

@@ -1,24 +1,41 @@
+from scripts.common import parse_genomes_and_sequences
+
 import os
 import glob
 import pathlib
 
 configfile: os.path.join(workflow.basedir, "..", "config", "config.yaml")
 
-# ONT reads
-LONG = config["long_reads"]
+# directory to raw reads
+READDIR = config["reads_dir"]
 
-# Illumina reads
-R1 = config["short_r1"]
-R2 = config["short_r2"]
+# path to metadata
+METADATA = config["genome_info"]
 
 # directory to save the results
 RESULTS_DIR = config["results_dir"]
+
+# reads type
+READS_TYPE = config["reads_type"]
 
 # subsampled reads number
 SUBREADS_COUNT = config["count"]
 
 # convert number of subsampled read sets into a list of strings
 NUMBER = ["{:02d}".format(i+1) for i in range(SUBREADS_COUNT)]
+
+# get genome names and sequences path
+if READS_TYPE == "hybrid":
+    GENOME, SHORT_R1_MAP, SHORT_R2_MAP, LONG_READS_MAP = parse_genomes_and_sequences(READS_TYPE, METADATA, READDIR)
+
+if READS_TYPE == "short":
+    GENOME, SHORT_R1_MAP, SHORT_R2_MAP = parse_genomes_and_sequences(READS_TYPE, METADATA, READDIR)
+    
+if READS_TYPE == "long":
+    GENOME, LONG_READS_MAP = parse_genomes_and_sequences(READS_TYPE, METADATA, READDIR)
+
+# conda_envs for tracking plassembler_db
+CONDA_ENVS = config["conda_envs"]
 
 # rules
 include: "rules/setup.smk"
@@ -42,5 +59,3 @@ def get_all_input(wildcards):
 # master target rule
 rule all:
     input: get_all_input
-
-
