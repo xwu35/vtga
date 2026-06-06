@@ -72,23 +72,6 @@ version = "1.1.0"
     help='Snakemake profile for cluster execution'
 )
 
-# def validate_columns(genome_info, required_columns):
-
-#     df = pd.read_table(genome_info)
-
-#     # 1. Validate if required columns exist
-#     missing_cols = [col for col in required_columns if col not in df.columns]
-#     if missing_cols:
-#         raise ValueError(f"Sample information table is missing required columns: {missing_cols}")
-
-#     # 2. Validate if content is empty
-#     for col in required_columns:
-#         # Check if column contains all NaNs or empty strings
-#         if df[col].replace('', np.nan).isnull().all():
-#             raise ValueError(f"Column '{col}' is entirely empty or null.")
-            
-#     return True
-
 def run_genomeassembly(reads_dir, genome_info, 
           output_dir, reads_type, count, dryrun, conda_envs, profile):
 
